@@ -1,0 +1,94 @@
+#load Data 
+import pandas as pd
+import numpy as np
+df = pd.read_csv('/Users/coreyclip/Desktop/Decissio/ceed_ml.csv', encoding='utf-8', index_col='Name')
+from sklearn import preprocessing
+from sklearn.feature_extraction.text import CountVectorizer
+
+#select target and training variables
+
+target = df['status_finalized']
+words = 'skl_mkt'
+text = df[words]
+
+#begin vectorizing text
+# Attempt to integrate Stemmer and CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
+from nltk.stem.snowball import SnowballStemmer
+
+stemmer = SnowballStemmer('english')
+analyzer = CountVectorizer(stop_words = 'english').build_analyzer()
+
+def stemmed_words(doc):
+    return (stemmer.stem(w) for w in analyzer(doc))
+
+vect = CountVectorizer(analyzer=stemmed_words, stop_words='english')
+
+#fit it to the features 
+vect.fit(text)
+
+print 'number of features:', len(vect.get_feature_names())
+# do train test split
+from sklearn.cross_validation import train_test_split
+
+x_train, x_test, y_train, y_test = train_test_split(text,target,test_size=0.20, random_state=12)
+
+#redo countvectorization
+x_train_dtm = vect.fit_transform(x_train) #this fits and transforms in one step
+#do the same thing with the test data
+x_test_dtm = vect.transform(x_test) #make sure we just tranform not fit!!
+
+#Bring forth the Multinomial Baynes model!!!
+from sklearn.naive_bayes import MultinomialNB
+nb = MultinomialNB(alpha=.7)
+
+#fit the model! note that %time gives you the time it takes to train model
+%time nb.fit(x_train_dtm, y_train) 
+
+#make predictions for x_test_dtm 
+%time y_pred_class = nb.predict(x_test_dtm)
+
+#score predictions
+from sklearn import metrics
+acc = metrics.accuracy_score(y_test, y_pred_class)
+print 'model accuracy is:', acc
+
+#confusion matrix
+conf_matrix = metrics.confusion_matrix(y_test, y_pred_class)
+
+#number of times each token appears for companies that are True Positives
+TP_token_count = nb.feature_count_[1,:]
+
+#do the same for companies that are True Negatives
+TN_token_count =  nb.feature_count_[0,:]
+
+#store the vocabulary of x_train
+x_train_tokens = vect.get_feature_names()
+
+#create dataframe of tokencounts 
+tokens = pd.DataFrame({'token':x_train_tokens, 'TP':TP_token_count, 'TN':TN_token_count}).set_index('token')
+
+#add 1 to each class to avoid dividing by 0
+tokens['TP'] = tokens.TP + 1
+tokens['TN'] = tokens.TN + 1
+tokens.sort(columns='TP', ascending=False)
+
+# convert these to frequencies 
+tokens['TP'] = tokens.TP / nb.class_count_[1]
+tokens['TN'] = tokens.TN / nb.class_count_[0]
+tokens.sort(columns='TP', ascending=False)
+
+tokens['difference'] = tokens.TP - tokens.TN
+tokens.sort(columns='difference', ascending=False)
+
+#we take the top 20 of the sorted list to return tokens that are the 20 tokens most associated with TP vs TN
+head = tokens.head(20)
+#Same as above but the 20 most associated with TN 
+tail = tokens.tail(20)
+
+final_tokens = head.append(tail)
+
+output = '/Users/coreyclip/Desktop/Decissio/ML_output/NB_Tokens/'
+
+final_tokens.to_csv(output + words +'.csv', encoding='utf-8')
+
