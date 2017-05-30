@@ -1,14 +1,15 @@
 #load Data 
 import pandas as pd
 import numpy as np
-df = pd.read_csv('/Users/coreyclip/Desktop/Decissio/ceed_ml.csv', encoding='utf-8', index_col='Name')
+filepath = input('input filepath for datasource:')
+df = pd.read_csv(, encoding='utf-8', index_col='Name')
 from sklearn import preprocessing
 from sklearn.feature_extraction.text import CountVectorizer
 
 #select target and training variables
-
-target = df['status_finalized']
-words = 'skl_mkt'
+y = input('input the column name of the dependent variable you want to train the text on: /n')
+target = df[y]
+words = input('input name of column containing text you want to extract features from: /n')
 text = df[words]
 
 #begin vectorizing text
@@ -38,9 +39,11 @@ x_train_dtm = vect.fit_transform(x_train) #this fits and transforms in one step
 #do the same thing with the test data
 x_test_dtm = vect.transform(x_test) #make sure we just tranform not fit!!
 
-#Bring forth the Multinomial Baynes model!!!
+#Bring forth the Multinomial Baynes model
 from sklearn.naive_bayes import MultinomialNB
-nb = MultinomialNB(alpha=.7)
+print ('preparing to start algorithmn training')
+a = input('set alpha level for Multinomial Naive Bayes algorithm')
+nb = MultinomialNB(alpha=a)
 
 #fit the model! note that %time gives you the time it takes to train model
 %time nb.fit(x_train_dtm, y_train) 
@@ -88,7 +91,7 @@ tail = tokens.tail(20)
 
 final_tokens = head.append(tail)
 
-output = '/Users/coreyclip/Desktop/Decissio/ML_output/NB_Tokens/'
+output = input('set where sorted lists of tokens are outputed')
 
 final_tokens.to_csv(output + words +'.csv', encoding='utf-8')
 
